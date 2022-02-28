@@ -1,25 +1,13 @@
 {
   "name": "nft-drop-contract",
   "version": "1.0.0",
-  "scripts": {
-    "test": "npx hardhat compile && npx hardhat test",
-    "coverage": "npx hardhat coverage",
-    "compile": "npx hardhat compile",
-    "deploy": "hardhat deploy"
+  "description": "This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, a sample script that deploys that contract, and an example of a task implementation, which simply lists the available accounts.",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
   },
-  "devDependencies": {
-    "@nomiclabs/hardhat-ethers": "^2.0.2",
-    "@nomiclabs/hardhat-etherscan": "^2.1.6",
-    "@nomiclabs/hardhat-waffle": "^2.0.1",
-    "@nomiclabs/hardhat-web3": "^2.0.0",
-    "@openzeppelin/contracts": "^4.3.1",
-    "chai": "^4.3.4",
-    "dotenv": "^10.0.0",
-    "ethereum-waffle": "^3.4.0",
-    "ethers": "^5.4.6",
-    "hardhat": "^2.6.2",
-    "hardhat-deploy": "^0.9.1",
-    "solidity-coverage": "^0.7.17"
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
@@ -27,5 +15,16 @@
   },
   "author": "",
   "license": "ISC",
-  "homepage": "https://bitbucket.org/capsule-corp-labs/nft-drop-contract#readme"
+  "homepage": "https://bitbucket.org/capsule-corp-labs/nft-drop-contract#readme",
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.0.5",
+    "@nomiclabs/hardhat-waffle": "^2.0.2",
+    "@openzeppelin/contracts": "^4.5.0",
+    "chai": "^4.3.6",
+    "ethereum-waffle": "^3.4.0",
+    "ethers": "^5.5.4",
+    "hardhat": "^2.8.4",
+    "hardhat-deploy": "^0.10.5",
+    "solidity-coverage": "^0.7.20"
+  }
 }

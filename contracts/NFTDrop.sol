@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "contracts/utils/MerkleProof.sol";
 import "hardhat/console.sol";
 
 contract NFTDrop is ERC721Enumerable, ReentrancyGuard, Ownable {
@@ -12,31 +13,15 @@ contract NFTDrop is ERC721Enumerable, ReentrancyGuard, Ownable {
     address public preMinter;
     /**
      *@dev mint phases
-     *@param  pre pre minting phase
-     *@param WhiteList whitelist phase
-     *@param Public public minting phase
+     *@param  PRE_MINTING pre minting phase
+     *@param WHITELIST whitelist phase
+     *@param PUBLIC public minting phase
      */
-    enum MintPhases {
-        Pre,
-        WhiteList,
-        Public
+    enum MintPhase {
+        PRE_MINTING,
+        WHITELIST,
+        PUBLIC
     }
-
-    /**
-     * @dev token info
-     * @param minter nft owner wallet address
-     * @param name nft name
-     * @param id nft id
-     * @param price nft price
-     */
-    struct TokenInfo {
-        address minter;
-        string name;
-        uint256 price;
-    }
-
-    ///@dev id => TokenInfo
-    mapping(uint256 => TokenInfo) tokenInfos;
 
     ///@dev address => bool
     mapping(address => bool) whiteList;
@@ -48,23 +33,25 @@ contract NFTDrop is ERC721Enumerable, ReentrancyGuard, Ownable {
     uint256 public maxAmount = 999;
 
     ///@dev total supply
-    uint256 public tokenIdTracker;
+    uint256 public tokenIdTracker = 1;
+
+    ///@dev ntf price
+    uint256 public nftPrice = 0.06* 10e18 wei;
 
     ///@dev baseTokenURI
     string public baseTokenURI;
 
-    ///@dev preMined flag
-    bool public preMinted;
+    ///@dev current phase
+    MintPhase currentPhase;
 
-    ///@dev preMined flag
-    bool public whiteListFinished;
+    ///@dev merkle proof
+    bytes32[] public merkleProof;
+
+    ///@dev merkel root
+    bytes32 public merkleRoot;
 
     ///@dev Mint event
     event Minted(address minter, uint256 id);
-
-    event WhiteListAdded(address minter);
-
-    event WhiteListRemoved(address minter);
 
     /** 
      * @dev constructor
@@ -90,45 +77,36 @@ contract NFTDrop is ERC721Enumerable, ReentrancyGuard, Ownable {
 
     /**
      * @dev mint card token to contract
-     * @param name nft name
-     * @param price nft price
      * @param amount amount to be minted
      */
-    function mint(string calldata name, uint256 price, uint256 amount) external nonReentrant saleIsOpen {
-        require(price > 0, "NFTDrop: invalid NFT price");
-        require(bytes(name).length > 0, "NFTDrop: no NFT name");
+    function mint(uint256 amount) external payable nonReentrant saleIsOpen {
+        require(msg.value > nftPrice, "NFTDrop: not enough price");
+        require(tokenIdTracker + amount <= maxAmount, "NFTDrop: can't be grater that maxAmount(999)");
 
         uint256 id = tokenIdTracker;
-
-        //TODO premint #20, whitelist, public mint
-
-        if (id != 20 && id < 521 && preMinted) {        //whitelist phase
-            require(whiteList[_msgSender()], "NFTDrop: not whitelised address");
-            require(ownedNFTs[_msgSender()] == 0, "NFTDrop: already have a NFT minted");
-            require(amount == 1, "NFTDrop: not allowed mint amount");
-
-            if (id == 520) whiteListFinished = true;
-
-            tokenInfos[id] = TokenInfo(
-                _msgSender(),
-                name,
-                price
-            );
-            ownedNFTs[_msgSender()] += amount;
-            tokenIdTracker += amount;
+        if (currentPhase == MintPhase.PRE_MINTING) {                            //pre mint phase
+            require(_msgSender() == preMinter, "NFTDrop: not allowed preminter");
+            id = 20;
 
             _safeMint(_msgSender(), id);
             emit Minted(_msgSender(), id);
-        } else if (id >= 521 && whiteListFinished) {             //public mint phase
+        } else if (id == 20 && currentPhase == MintPhase.WHITELIST) {
+            tokenIdTracker += 1;
+        } else if (id != 20 && id <= 501 && currentPhase == MintPhase.WHITELIST) {        //whitelist phase
+            require(!whiteList[_msgSender()], "NFTDrop: already claimed address");
+
+            bytes32 leaf = keccak256(abi.encodePacked(_msgSender()));
+            require(MerkleProof.verify(merkleProof, merkleRoot, leaf), "NFTDrop: invalid proof");
+
+            whiteList[_msgSender()] = true;
+            tokenIdTracker += 1;
+
+            _safeMint(_msgSender(), id);
+            emit Minted(_msgSender(), id);
+        } else if (id > 501 && currentPhase == MintPhase.PUBLIC) {             //public mint phase
             require(ownedNFTs[_msgSender()] + amount <= 5, "NFTDrop: can mint 5 NFTs");
 
             for (uint256 i = 0; i < amount; i++) {
-                tokenInfos[id] = TokenInfo(
-                    _msgSender(),
-                    name,
-                    price
-                );
-
                 _safeMint(_msgSender(), id);
                 emit Minted(_msgSender(), id);
 
@@ -136,44 +114,22 @@ contract NFTDrop is ERC721Enumerable, ReentrancyGuard, Ownable {
             }
             ownedNFTs[_msgSender()] += amount;
             tokenIdTracker += amount;
-        } else {                            //pre mint phase
-            require(_msgSender() == preMinter, "NFTDrop: not allowed preminter");
-            id = 20;
-            tokenInfos[id] = TokenInfo(
-                _msgSender(),
-                name,
-                price
-            );
-            preMinted = true;
-
-            _safeMint(_msgSender(), id);
-            emit Minted(_msgSender(), id);
-        }
-
-    }
-
-    /**
-     * @dev  add minter addresses to whitelist
-     * @param minters array of minter wallet address
-     */
-    function addToWhiteList(address[] memory minters) external onlyOwner {
-        for (uint256 i = 0; i < minters.length; i ++) {
-            if (minters[i] != address(0)) whiteList[minters[i]] = true;
-
-            emit WhiteListAdded(minters[i]);
         }
     }
 
-    /**
-     * @dev  remove minter addresses from whitelist
-     * @param minters array of minter wallet address
-     */
-    function removeFromWhiteList(address[] memory minters) external onlyOwner {
-        for (uint256 i = 0; i < minters.length; i ++) {
-            if (minters[i] != address(0)) whiteList[minters[i]] = false;
-
-            emit WhiteListRemoved(minters[i]);
+    function setPhase(MintPhase newPhase) external onlyOwner {
+        if (newPhase == MintPhase.WHITELIST) {
+            require(currentPhase == MintPhase.PRE_MINTING, "NFTDrop: should be on the pre-minting phase");
+        } else if (newPhase == MintPhase.PUBLIC) {
+            require(currentPhase == MintPhase.WHITELIST, "NFTDrop: should be on the whitelist phase");
         }
+
+        currentPhase = newPhase;
+    }
+
+    function setHashData(bytes32[] memory _merkleProof, bytes32 _merkleRoot) external onlyOwner {
+        merkleProof = _merkleProof;
+        merkleRoot = _merkleRoot;
     }
 
     /**

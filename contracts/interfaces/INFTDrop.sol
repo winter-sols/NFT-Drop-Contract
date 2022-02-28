@@ -2,40 +2,35 @@
 pragma solidity ^0.8.0;
 
 interface INFTDrop {
-
     /**
-     * @dev token info
-     * @param minter nft owner wallet address
-     * @param name nft name
-     * @param price nft price
+     *@dev mint phases
+     *@param  PRE_MINTING pre minting phase
+     *@param WHITELIST whitelist phase
+     *@param PUBLIC public minting phase
      */
-    struct TokenInfo {
-        address minter;
-        string name;
-        uint256 price;
+    enum MintPhase {
+        PRE_MINTING,
+        WHITELIST,
+        PUBLIC
     }
-
     /**
      * @dev mint card token to contract
-     * @param name nft name
-     * @param price nft price
      * @param amount amount of nfts to be minted
      */
     function mint(
-        string calldata name,
-        uint256 price,
         uint256 amount
     ) external payable;
 
     /**
-     * @dev  add minter address to whitelist
-     * @param minters array of minter wallet addresses
+     * @dev  set some hash date to verify
+     * @param merkleProof array of hashed whitelist addresses
+     * @param merkleRoot the root hash of a Merkle Tree
      */
-    function addToWhitelist(address[] memory minters) external;
+    function setHashData(bytes32[] memory merkleProof, bytes32 merkleRoot) external;
 
     /**
-     * @dev  remove minter address from whitelist
-     * @param minters array of minter wallet address
+     * @dev set current mint phase
+     * @param phase one of mint phases
      */
-    function removeFromWhiteList(address[] memory minters) external;
+    function setPhase(MintPhase phase) external;
 }
