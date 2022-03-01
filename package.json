@@ -26,5 +26,9 @@
     "hardhat": "^2.8.4",
     "hardhat-deploy": "^0.10.5",
     "solidity-coverage": "^0.7.20"
+  },
+  "dependencies": {
+    "keccak256": "^1.0.6",
+    "merkletreejs": "^0.2.30"
   }
 }

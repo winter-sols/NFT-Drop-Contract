@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "contracts/utils/MerkleProof.sol";
 import "hardhat/console.sol";
 
-contract NFTDrop is ERC721Enumerable, ReentrancyGuard, Ownable {
+contract MockNFTDrop is ERC721Enumerable, ReentrancyGuard, Ownable {
 
     ///@dev masterMinter
     address public immutable preMinter;
@@ -30,17 +30,17 @@ contract NFTDrop is ERC721Enumerable, ReentrancyGuard, Ownable {
     mapping(address => uint256) ownedNFTs;
     
     ///@dev maximum amount
-    uint256 public constant maxAmount = 999;
+    uint256 public constant maxAmount = 13;
 
     ///@dev ntf price
     uint256 public constant nftPrice = 0.06 ether;
 
     ///@dev total supply
     uint256 public tokenIdTracker = 1;
-        
+    
     ///@dev preminting id
-    uint256 public preMintingId = 20;
-
+    uint256 public preMintingId = 2;
+    
     ///@dev baseTokenURI
     string public baseTokenURI;
 
@@ -79,27 +79,27 @@ contract NFTDrop is ERC721Enumerable, ReentrancyGuard, Ownable {
     }
 
     /**
-     * @dev mint card token to contract
+     * @dev mint card token to contract: pre-minting nft id 2, whitelist has 4, others are public minter(5 limit)
      * @param amount amount to be minted
      */
     function mint(uint256 amount) external payable nonReentrant saleIsOpen {
         require(msg.value > nftPrice, "NFTDrop: not enough price");
-        require(tokenIdTracker + amount <= maxAmount, "NFTDrop: can't be grater that maxAmount(999)");
+        require(tokenIdTracker + amount <= maxAmount, "NFTDrop: can't be grater that maxAmount(13)");
 
         uint256 id = tokenIdTracker;
         if (currentPhase == MintPhase.PRE_MINTING) {                            //pre mint phase
             require(_msgSender() == preMinter, "NFTDrop: not allowed preminter");
-            id = 20;
+            id = 2;
 
             _safeMint(_msgSender(), id);
             emit Minted(_msgSender(), id);
-        } else if (id != preMintingId && id <= 501 && currentPhase == MintPhase.WHITELIST) {        //whitelist phase
+        } else if (id != preMintingId && id <= 5 && currentPhase == MintPhase.WHITELIST) {        //whitelist phase
             require(!whiteList[_msgSender()], "NFTDrop: already claimed address");
             require(merkleProof.length != 0 && merkleRoot.length != 0, "NFTDrop: hash data should be set");
 
             bytes32 leaf = keccak256(abi.encodePacked(_msgSender()));
             require(MerkleProof.verify(merkleProof, merkleRoot, leaf), "NFTDrop: invalid proof");
-            
+
             _safeMint(_msgSender(), id);
             emit Minted(_msgSender(), id);
 
@@ -109,7 +109,7 @@ contract NFTDrop is ERC721Enumerable, ReentrancyGuard, Ownable {
                 tokenIdTracker += 2;
             else
                 tokenIdTracker += 1;
-        } else if (id > 501 && currentPhase == MintPhase.PUBLIC) {             //public mint phase
+        } else if (id > 5 && currentPhase == MintPhase.PUBLIC) {             //public mint phase
             require(ownedNFTs[_msgSender()] + amount <= 5, "NFTDrop: can mint 5 NFTs");
 
             for (uint256 i = 0; i < amount; i++) {
