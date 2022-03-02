@@ -8,9 +8,9 @@ import "contracts/utils/MerkleProof.sol";
 import "hardhat/console.sol";
 
 contract MockNFTDrop is ERC721Enumerable, ReentrancyGuard, Ownable {
-
     ///@dev masterMinter
     address public immutable preMinter;
+    
     /**
      *@dev mint phases
      *@param  PRE_MINTING pre minting phase
@@ -53,7 +53,11 @@ contract MockNFTDrop is ERC721Enumerable, ReentrancyGuard, Ownable {
     ///@dev merkel root
     bytes32 public merkleRoot;
 
-    ///@dev Mint event
+    /**
+     * @dev Mint event
+     * @param minter address of minter
+     * @param id minting nft id
+     */
     event Minted(address minter, uint256 id);
 
     /** 
@@ -74,7 +78,7 @@ contract MockNFTDrop is ERC721Enumerable, ReentrancyGuard, Ownable {
     }
 
     modifier saleIsOpen() {
-        require(tokenIdTracker <= maxAmount, "NFTDrop: maximum amount exceeded");
+        require(tokenIdTracker <= maxAmount + 1, "NFTDrop: maximum amount exceeded");
         _;
     }
 
@@ -83,8 +87,8 @@ contract MockNFTDrop is ERC721Enumerable, ReentrancyGuard, Ownable {
      * @param amount amount to be minted
      */
     function mint(uint256 amount) external payable nonReentrant saleIsOpen {
-        require(msg.value > nftPrice, "NFTDrop: not enough price");
-        require(tokenIdTracker + amount <= maxAmount, "NFTDrop: can't be grater that maxAmount(13)");
+        require(msg.value >= nftPrice * amount, "NFTDrop: not enough price");
+        require(tokenIdTracker + amount <= maxAmount + 1, "NFTDrop: can't be grater that maxAmount(13)");
 
         uint256 id = tokenIdTracker;
         if (currentPhase == MintPhase.PRE_MINTING) {                            //pre mint phase
@@ -109,7 +113,7 @@ contract MockNFTDrop is ERC721Enumerable, ReentrancyGuard, Ownable {
                 tokenIdTracker += 2;
             else
                 tokenIdTracker += 1;
-        } else if (id > 5 && currentPhase == MintPhase.PUBLIC) {             //public mint phase
+        } else if (currentPhase == MintPhase.PUBLIC) {             //public mint phase
             require(ownedNFTs[_msgSender()] + amount <= 5, "NFTDrop: can mint 5 NFTs");
 
             for (uint256 i = 0; i < amount; i++) {
@@ -123,6 +127,23 @@ contract MockNFTDrop is ERC721Enumerable, ReentrancyGuard, Ownable {
         }
     }
 
+    /**
+     * @dev withdraw current balance: only owner can call
+     * @param recepient address of recepient
+     */
+    function withdraw(address payable recepient) external onlyOwner nonReentrant {
+        require(recepient != address(0), "NFTDrop: invalid recipent address");
+        
+        uint256 currentBalance = getBalance();
+
+        (bool success, ) = recepient.call{ value: currentBalance }("");
+        require(success, "NFTDrop: failed to send ethers");
+    }
+
+    /**
+     * @dev set current mint phase
+     * @param newPhase one of mint phases
+     */
     function setPhase(MintPhase newPhase) external onlyOwner {
         if (newPhase == MintPhase.WHITELIST) {
             require(currentPhase == MintPhase.PRE_MINTING, "NFTDrop: should be on the pre-minting phase");
@@ -133,9 +154,19 @@ contract MockNFTDrop is ERC721Enumerable, ReentrancyGuard, Ownable {
         currentPhase = newPhase;
     }
 
+    /**
+     * @dev  set some hash date to verify
+     * @param _merkleProof array of hashed whitelist addresses
+     * @param _merkleRoot the root hash of a Merkle Tree
+     */
     function setHashData(bytes32[] memory _merkleProof, bytes32 _merkleRoot) external onlyOwner {
         merkleProof = _merkleProof;
         merkleRoot = _merkleRoot;
+    }
+
+    ///@dev get current balance
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
     }
 
     /**

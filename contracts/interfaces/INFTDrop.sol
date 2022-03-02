@@ -22,15 +22,21 @@ interface INFTDrop {
     ) external payable;
 
     /**
-     * @dev  set some hash date to verify
-     * @param merkleProof array of hashed whitelist addresses
-     * @param merkleRoot the root hash of a Merkle Tree
+     * @dev withdraw current balance: only owner can call
+     * @param recepient payable address of recepient
      */
-    function setHashData(bytes32[] memory merkleProof, bytes32 merkleRoot) external;
+    function withdraw(address payable recepient) external;
+
+    /**
+     * @dev  set some hash date to verify
+     * @param _merkleProof array of hashed whitelist addresses
+     * @param _merkleRoot the root hash of a Merkle Tree
+     */
+    function setHashData(bytes32[] memory _merkleProof, bytes32 _merkleRoot) external;
 
     /**
      * @dev set current mint phase
-     * @param phase one of mint phases
+     * @param newPhase one of mint phases
      */
-    function setPhase(MintPhase phase) external;
+    function setPhase(MintPhase newPhase) external;
 }

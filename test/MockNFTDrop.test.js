@@ -41,7 +41,7 @@ describe("Mock NFT Drop", async () => {
   })
 
   it("Mint fails: minter should send more than a NFT price: nft price + gas fee", async () => {
-    await expect(this.nftDrop.connect(this.preMinter).mint(1, { value: this.nftPrice }))
+    await expect(this.nftDrop.connect(this.preMinter).mint(1, { value: ethers.utils.parseEther("0.059") }))
       .to.revertedWith("NFTDrop: not enough price")
   })
 
@@ -67,7 +67,7 @@ describe("Mock NFT Drop", async () => {
       .withArgs(this.preMinter.address, this.preMintingId)
   })
 
-  it("Tranforming to public whitelist fails: only owner is able to set phase", async () => {
+  it("Tranforming to public phase fails: only owner is able to set phase", async () => {
     await expect(this.nftDrop.connect(this.alice).setPhase(this.PUBLIC_MINTING_PHASE))
       .revertedWith("Ownable: caller is not the owner")
   })
@@ -81,5 +81,152 @@ describe("Mock NFT Drop", async () => {
     await expect(this.nftDrop.connect(this.preMinter).setPhase(this.WHITELIST_PHASE))
   })
 
+  it("In whitelist phase, mint fails: hash data should be set before minting", async () => {
+    await expect(this.nftDrop.connect(this.alice).mint(
+      1,
+      { value: this.nftPrice + this.gasFee }
+    )).to.revertedWith("NFTDrop: hash data should be set")
+  })
+
+  //To mint as a whitelister, it is necessary to set hash data amd mint nft with verification: Alice mint a nft
+  it("In whitelist phase, set hash data", async () => {
+    const claimer = this.leafNode[0]   // For alice
+    const merkleProof = this.merkleTree.getHexProof(claimer)
+    await expect(this.nftDrop.connect(this.preMinter).setHashData(merkleProof, this.rootHash))
+  })
+
+  it("In whitelist phase, mint fails: whitelister can only mint one NFT", async () => {
+    await expect(this.nftDrop.connect(this.carl).mint(
+      1,
+      { value: this.nftPrice + this.gasFee }
+    )).to.revertedWith("NFTDrop: invalid proof")
+  })
+
+  it("In whitelist phase, mint succeeds", async () => {
+    await expect(this.nftDrop.connect(this.alice).mint(
+      1,
+      { value: this.nftPrice + this.gasFee }
+    )).emit(this.nftDrop, "Minted")
+      .withArgs(this.alice.address, 1)
+  })
+
+  it("In whitelist phase, mint fails: can only mint once", async () => {
+    await expect(this.nftDrop.connect(this.alice).mint(
+      1,
+      { value: this.nftPrice + this.gasFee }
+    )).to.revertedWith("NFTDrop: already claimed address")
+  })
+  //-----------Alice-----------------
   
+  // Bob mint a nft
+  it("In whitelist phase, set hash data", async () => {
+    const claimer = this.leafNode[1]   // For bob
+    const merkleProof = this.merkleTree.getHexProof(claimer)
+    await expect(this.nftDrop.connect(this.preMinter).setHashData(merkleProof, this.rootHash))
+  })
+
+  it("In whitelist phase, mint succeeds", async () => {
+    await expect(this.nftDrop.connect(this.bob).mint(
+      1,
+      { value: this.nftPrice + this.gasFee }
+    )).emit(this.nftDrop, "Minted")
+      .withArgs(this.bob.address, 3)
+  })
+
+  it("In whitelist phase, mint fails: can only mint once", async () => {
+    await expect(this.nftDrop.connect(this.bob).mint(
+      1,
+      { value: this.nftPrice + this.gasFee }
+    )).to.revertedWith("NFTDrop: already claimed address")
+  })
+  // -----------Bob-------------------
+
+  // Carl mint a nft
+  it("In whitelist phase, set hash data", async () => {
+    const claimer = this.leafNode[2]   // For carl
+    const merkleProof = this.merkleTree.getHexProof(claimer)
+    await expect(this.nftDrop.connect(this.preMinter).setHashData(merkleProof, this.rootHash))
+  })
+
+  it("In whitelist phase, mint succeeds", async () => {
+    await expect(this.nftDrop.connect(this.carl).mint(
+      1,
+      { value: this.nftPrice + this.gasFee }
+    )).emit(this.nftDrop, "Minted")
+      .withArgs(this.carl.address, 4)
+  })
+
+  it("In whitelist phase, mint fails: can only mint once", async () => {
+    await expect(this.nftDrop.connect(this.carl).mint(
+      1,
+      { value: this.nftPrice + this.gasFee }
+    )).to.revertedWith("NFTDrop: already claimed address")
+  })
+  // -----------Carl-------------------
+
+  it("Withdraw fails: only owner can withdraw", async () => {
+    await expect(this.nftDrop.connect(this.carl).withdraw(this.carl.address))
+      .to.revertedWith("Ownable: caller is not the owner")
+  })
+
+  it("Withdraw fails: recepient address should exist", async () => {
+    await expect(this.nftDrop.connect(this.preMinter).withdraw(ethers.constants.AddressZero))
+      .to.revertedWith("NFTDrop: invalid recipent address")
+  })
+
+  it("Withdraw succeeds: contract's balance to a recepient", async () => {
+    await this.nftDrop.connect(this.preMinter).withdraw(this.carl.address)
+  })
+
+  // Dom mint a nft
+  it("In whitelist phase, set hash data", async () => {
+    const claimer = this.leafNode[3]   // For carl
+    const merkleProof = this.merkleTree.getHexProof(claimer)
+    await expect(this.nftDrop.connect(this.preMinter).setHashData(merkleProof, this.rootHash))
+  })
+
+  it("In whitelist phase, mint succeeds", async () => {
+    await expect(this.nftDrop.connect(this.dom).mint(
+      1,
+      { value: this.nftPrice + this.gasFee }
+    )).emit(this.nftDrop, "Minted")
+      .withArgs(this.dom.address, 5)
+  })
+  // -----------Dom-------------------
+
+  it("Tranforming to public phase succeeds", async () => {
+    await expect(this.nftDrop.connect(this.preMinter).setPhase(this.PUBLIC_MINTING_PHASE))
+  })
+
+  it("In public phase, mint succeeds", async () => {
+    await expect(this.nftDrop.connect(this.eric).mint(
+      5,
+      { value: this.nftPrice + this.gasFee }
+    )).emit(this.nftDrop, "Minted")
+      .withArgs(this.eric.address, 10)
+  })
+
+  it("In public phase, mint fails: a minter can't mint over 5 NFTs", async () => {
+    await expect(this.nftDrop.connect(this.eric).mint(
+      1,
+      { value: this.nftPrice + this.gasFee }
+    )).to.revertedWith("NFTDrop: can mint 5 NFTs")
+  })
+
+  it("In public phase, mint succeeds", async () => {
+    await expect(this.nftDrop.connect(this.felix).mint(
+      3,
+      { value: this.nftPrice + this.gasFee }
+    )).emit(this.nftDrop, "Minted")
+      .withArgs(this.felix.address, 13)
+  })
+
+  it("In public phase, mint fails: can't be over maximum amount of NFTs", async () => {
+    await expect(this.nftDrop.connect(this.felix).mint(
+      1,
+      { value: this.nftPrice + this.gasFee }
+    )).to.revertedWith("NFTDrop: can't be grater that maxAmount(13)")
+  })
+
+
 })
