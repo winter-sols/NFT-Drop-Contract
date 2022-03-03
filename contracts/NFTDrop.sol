@@ -177,6 +177,7 @@ contract NFTDrop is ERC721Royalty, ReentrancyGuard, Ownable {
      * @param newRoyaltyOwner new owner
      */
     function setRoyaltyOwner(address newRoyaltyOwner) external onlyOwner {
+        require(newRoyaltyOwner != address(0), "NFTDrop: invalid address");
         royaltyOwner = newRoyaltyOwner;
     }
 

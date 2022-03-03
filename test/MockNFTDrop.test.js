@@ -227,4 +227,14 @@ describe("Mock NFT Drop", async () => {
       { value: this.nftPrice + this.gasFee }
     )).to.revertedWith("NFTDrop: can't be grater that maxAmount(13)")
   })
+
+  it("Setting Royalty Owner fails: only owner can set new royalty owner", async () => {
+    await expect(this.nftDrop.connect(this.felix).setRoyaltyOwner(this.felix.address))
+      .to.revertedWith("Ownable: caller is not the owner")
+  })
+
+  it("Setting Royalty Owner fails: can set valid address as a new royalty owner", async () => {
+    await expect(this.nftDrop.connect(this.preMinter).setRoyaltyOwner(ethers.constants.AddressZero))
+      .to.revertedWith("NFTDrop: invalid address")
+  })
 })
