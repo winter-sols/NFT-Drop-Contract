@@ -227,6 +227,4 @@ describe("Mock NFT Drop", async () => {
       { value: this.nftPrice + this.gasFee }
     )).to.revertedWith("NFTDrop: can't be grater that maxAmount(13)")
   })
-
-
 })

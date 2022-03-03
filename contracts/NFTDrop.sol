@@ -1,15 +1,18 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Royalty.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "contracts/utils/MerkleProof.sol";
 import "hardhat/console.sol";
 
-contract NFTDrop is ERC721Enumerable, ReentrancyGuard, Ownable {
+contract NFTDrop is ERC721Royalty, ReentrancyGuard, Ownable {
     ///@dev masterMinter
     address public immutable preMinter;
+
+    ///@dev royalty owner
+    address public royaltyOwner;
 
     /**
      *@dev mint phases
@@ -41,6 +44,9 @@ contract NFTDrop is ERC721Enumerable, ReentrancyGuard, Ownable {
     ///@dev preminting id
     uint256 public preMintingId = 20;
 
+    ///@dev royalty fee = 6 %
+    uint96 public royaltyFee = 6;
+
     ///@dev baseTokenURI
     string public baseTokenURI;
 
@@ -71,6 +77,7 @@ contract NFTDrop is ERC721Enumerable, ReentrancyGuard, Ownable {
     {
         setBaseURI(baseURI);
         preMinter = _msgSender();
+        royaltyOwner = _msgSender();
     }
 
     modifier saleIsOpen() {
@@ -90,6 +97,7 @@ contract NFTDrop is ERC721Enumerable, ReentrancyGuard, Ownable {
         if (currentPhase == MintPhase.PRE_MINTING) {                            //pre mint phase
             require(_msgSender() == preMinter, "NFTDrop: not allowed preminter");
             id = 20;
+            _setTokenRoyalty(id, royaltyOwner, royaltyFee);
 
             _safeMint(_msgSender(), id);
             emit Minted(_msgSender(), id);
@@ -100,6 +108,8 @@ contract NFTDrop is ERC721Enumerable, ReentrancyGuard, Ownable {
             bytes32 leaf = keccak256(abi.encodePacked(_msgSender()));
             require(MerkleProof.verify(merkleProof, merkleRoot, leaf), "NFTDrop: invalid proof");
             
+            _setTokenRoyalty(id, royaltyOwner, royaltyFee);
+
             _safeMint(_msgSender(), id);
             emit Minted(_msgSender(), id);
 
@@ -113,6 +123,8 @@ contract NFTDrop is ERC721Enumerable, ReentrancyGuard, Ownable {
             require(ownedNFTs[_msgSender()] + amount <= 5, "NFTDrop: can mint 5 NFTs");
 
             for (uint256 i = 0; i < amount; i++) {
+                _setTokenRoyalty(id, royaltyOwner, royaltyFee);
+              
                 _safeMint(_msgSender(), id);
                 emit Minted(_msgSender(), id);
 
@@ -155,9 +167,17 @@ contract NFTDrop is ERC721Enumerable, ReentrancyGuard, Ownable {
      * @param _merkleProof array of hashed whitelist addresses
      * @param _merkleRoot the root hash of a Merkle Tree
      */
-    function setHashData(bytes32[] memory _merkleProof, bytes32 _merkleRoot) external onlyOwner {
+    function setHashData(bytes32[] calldata _merkleProof, bytes32 _merkleRoot) external onlyOwner {
         merkleProof = _merkleProof;
         merkleRoot = _merkleRoot;
+    }
+
+    /**
+     * @dev set new royalty owner
+     * @param newRoyaltyOwner new owner
+     */
+    function setRoyaltyOwner(address newRoyaltyOwner) external onlyOwner {
+        royaltyOwner = newRoyaltyOwner;
     }
 
     ///@dev get current balance
@@ -176,5 +196,13 @@ contract NFTDrop is ERC721Enumerable, ReentrancyGuard, Ownable {
     ///@dev override _baseURI, return baseTokenURI
     function _baseURI() internal view virtual override returns (string memory) {
         return baseTokenURI;
+    }
+
+    /**
+     * @dev The denominator with which to interpret the fee set in {_setTokenRoyalty} and {_setDefaultRoyalty} as a
+     * fraction of the sale price. It is overriden by 100 instead of 10000
+     */
+    function _feeDenominator() internal pure virtual override returns (uint96) {
+        return 100;
     }
 }

@@ -32,11 +32,17 @@ interface INFTDrop {
      * @param _merkleProof array of hashed whitelist addresses
      * @param _merkleRoot the root hash of a Merkle Tree
      */
-    function setHashData(bytes32[] memory _merkleProof, bytes32 _merkleRoot) external;
+    function setHashData(bytes32[] calldata _merkleProof, bytes32 _merkleRoot) external;
 
     /**
      * @dev set current mint phase
      * @param newPhase one of mint phases
      */
     function setPhase(MintPhase newPhase) external;
+
+    /**
+     * @dev set new royalty owner
+     * @param newRoyaltyOwner new owner
+     */
+    function setRoyaltyOwner(address newRoyaltyOwner) external;
 }
